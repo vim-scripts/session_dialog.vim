@@ -1,15 +1,15 @@
 " ==========================================================================
 " File:         session_dialog.vim
 " Author:       David Liang <bmdavll at gmail dot com>
-" Version:      1.0
-" Last Change:  2008 Nov 28
+" Version:      1.01
+" Last Change:  2008 Dec 4
 " License:      GPL
 "
 " Description:
 " session_dialog.vim provides a simple dialog and command-line based
-" interface to Vim's :mksession feature. Commands are available to save
-" sessions and restore, delete, and list sessions from specified locations.
-" It works well with the terminal as well as console dialogs in GVIM (set
+" interface to Vim's :mksession feature. There are commands to save sessions
+" and restore, delete, and list sessions from specified locations. It works
+" well with the terminal as well as console dialogs in GVIM (set
 " guioptions+=c), and provides command-line completion of session names.
 "
 " Usage:
@@ -44,17 +44,17 @@
 "   e.g. :SessionList foo bar* *baz will show all the sessions named foo,
 "   starting with bar, or ending with baz.
 "
-" ZS ZR ZD
-"   The default normal mode mappings for :SessionSave, :SessionRestore, and
-"   :SessionDelete. These can be disabled with g:SessionCreateDefaultMaps.
-"   Note that these will time out, unlike native commands such as ZZ. (see
-"   :help 'timeoutlen')
+" ZS ZR ZD ZL
+"   The default normal mode mappings for :SessionSave, :SessionRestore,
+"   :SessionDelete, and :SessionList, respectively. These can be disabled
+"   with g:SessionCreateDefaultMaps. Note that these will time out, unlike
+"   native commands such as ZZ. (see :help 'timeoutlen')
 "
 " Options:
 " g:SessionSaveDirectory
 "   Default is "$HOME"
-"   Where to save new sessions. This can be set in .vimrc or while Vim is
-"   running. For example, to get the default behavior of :mksession,
+"   Where to save new sessions. This can be set in your vimrc or while Vim
+"   is running. For example, to get the default behavior of :mksession,
 "        let g:SessionSaveDirectory = "."
 "
 " g:SessionPath
@@ -78,7 +78,13 @@
 " g:SessionDefault
 "   Unset by default
 "   The default session name to save to or restore from. This is overridden
-"   if v:this_session is non-null.
+"   by v:this_session if it's not null. If both are unset, the Vim server
+"   name (v:servername) will be used as the default.
+"
+" g:SessionConfirmOverwrite
+"   0 or 1 (default)
+"   Set this to 0 to save over an existing session file without asking for
+"   confirmation.
 "
 " g:SessionQuitAfterSave
 "   1 or 0 (default)
@@ -86,7 +92,7 @@
 "
 " g:SessionCreateDefaultMaps
 "   0 or 1 (default)
-"   Whether to create the default normal mode mappings (ZS, ZR, and ZD).
+"   Whether to create the default normal mode mappings (ZS, ZR, ZD, and ZL).
 "
 " ==========================================================================
 
@@ -95,8 +101,8 @@ if !has("mksession") || exists("loaded_session_dialog")
 	finish
 endif
 if v:version < 700
-    echomsg "session_dialog: Vim 7.0 or better is required"
-    finish
+	echomsg "session_dialog: Vim 7.0 or better is required"
+	finish
 endif
 let loaded_session_dialog = 1
 
@@ -110,6 +116,7 @@ endfunction
 
 call s:InitVariable("g:SessionSaveDirectory", "$HOME")
 call s:InitVariable("g:SessionPath", g:SessionSaveDirectory)
+call s:InitVariable("g:SessionConfirmOverwrite", 1)
 call s:InitVariable("g:SessionQuitAfterSave", 0)
 call s:InitVariable("g:SessionCreateDefaultMaps", 1)
 
@@ -121,7 +128,7 @@ call s:InitVariable("g:SessionFilePrefix", "_vimsession_")
 call s:InitVariable("g:SessionFileSuffix", ".vim")
 endif
 
-let s:PatternEscape = '.*[]^$\'
+let s:PatternEscape = '.*[^$\'
 " }}}
 
 " utility functions {{{
@@ -306,7 +313,7 @@ function! s:SaveSession(session)
 		if type != 'file'
 			call s:ErrorMsg(s:Quote(s:Shorten(file))." exists and is not a file")
 			return
-		elseif confirm("Overwrite ".s:Quote(s:Shorten(file))."?", "&Yes\n&No", 1, "Question") != 1
+		elseif g:SessionConfirmOverwrite == 1 && confirm("Overwrite ".s:Quote(s:Shorten(file))."?", "&Yes\n&No", 1, "Question") != 1
 			echomsg "Not saved"
 			return
 		endif
@@ -382,6 +389,9 @@ function! s:RestoreDeleteDialog(action)
 			let matches[2] = i+1
 		endif
 	endfor
+	if a:action == 1
+		call s:WarningMsg("session_dialog:")
+	endif
 	let default = ( filter(matches, "v:val") + [0] )[0]
 	let choices = s:GenerateChoices(sessions, ['c'])."\n&Cancel"
 	let choice = confirm((a:action==0 ? "Restore" : "Delete")." which session?", choices, default, "Question")
@@ -464,6 +474,7 @@ if g:SessionCreateDefaultMaps == 1
 nnoremap	<silent>ZS	:SessionSave<CR>
 nnoremap	<silent>ZR	:SessionRestore<CR>
 nnoremap	<silent>ZD	:SessionDelete<CR>
+nnoremap	<silent>ZL	:SessionList<CR>
 endif
 " }}}
 
