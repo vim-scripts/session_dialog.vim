@@ -325,6 +325,7 @@ function! s:SaveSession(session)
 		endif
 	catch
 		call s:ErrorMsg("Could not save session to ".s:Quote(s:Shorten(file)))
+		call s:ErrorMsg(v:exception)
 	endtry
 endfunction
 
@@ -336,8 +337,10 @@ function! s:SourceFile(file)
 	endif
 	try
 		exec "source ".fnameescape(a:file)
+	catch /^Vim\%((\a\+)\)\=:E490/ " ignore fold errors
 	catch
 		call s:ErrorMsg("Script error while loading ".s:Quote(s:Shorten(a:file)))
+		call s:ErrorMsg(v:exception)
 	endtry
 endfunction
 
@@ -390,11 +393,11 @@ function! s:RestoreDeleteDialog(action)
 		endif
 	endfor
 	if a:action == 1
-		call s:WarningMsg("session_dialog:")
+		call s:WarningMsg("session_dialog")
 	endif
 	let default = ( filter(matches, "v:val") + [0] )[0]
 	let choices = s:GenerateChoices(sessions, ['c'])."\n&Cancel"
-	let choice = confirm((a:action==0 ? "Restore" : "Delete")." which session?", choices, default, "Question")
+	let choice = confirm((a:action==0 ? "Restore" : "Delete")." which session?", choices, default, (a:action==0 ? "Question" : "Warning"))
 	if choice > 0 && choice <= len(sessions)
 		let path = s:SessionToPath(sessions[choice-1])
 		if a:action == 0
